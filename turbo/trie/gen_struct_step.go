@@ -28,17 +28,17 @@ import (
 // Experimental code for separating data and structural information
 // Each function corresponds to an opcode
 // DESCRIBED: docs/programmers_guide/guide.md#separation-of-keys-and-the-structure
-type structInfoReceiver interface {
-	leaf(length int, keyHex []byte, val rlphacks.RlpSerializable) error
-	leafHash(length int, keyHex []byte, val rlphacks.RlpSerializable) error
-	accountLeaf(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldset uint32, codeSize int) error
-	accountLeafHash(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldset uint32) error
-	extension(key []byte) error
-	extensionHash(key []byte) error
-	branch(set uint16) error
-	branchHash(set uint16) error
-	hash(hash []byte) error
-	topHash() []byte
+type StructInfoReceiver interface {
+	Leaf(length int, keyHex []byte, val rlphacks.RlpSerializable) error
+	LeafHash(length int, keyHex []byte, val rlphacks.RlpSerializable) error
+	AccountLeaf(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldset uint32, codeSize int) error
+	AccountLeafHash(length int, keyHex []byte, balance *uint256.Int, nonce uint64, incarnation uint64, fieldset uint32) error
+	Extension(key []byte) error
+	ExtensionHash(key []byte) error
+	Branch(set uint16) error
+	BranchHash(set uint16) error
+	Hash(hash []byte) error
+	TopHash() []byte
 }
 
 // hashCollector gets called whenever there might be a need to create intermediate hash record
@@ -93,7 +93,7 @@ func (GenStructStepHashData) GenStructStepData() {}
 func GenStructStep(
 	retain func(prefix []byte) bool,
 	curr, succ []byte,
-	e structInfoReceiver,
+	e StructInfoReceiver,
 	h HashCollector,
 	data GenStructStepData,
 	groups []uint16,
@@ -133,28 +133,28 @@ func GenStructStep(
 			switch v := data.(type) {
 			case *GenStructStepHashData:
 				/* building a hash */
-				if err := e.hash(v.Hash[:]); err != nil {
+				if err := e.Hash(v.Hash[:]); err != nil {
 					return nil, err
 				}
 				buildExtensions = true
 			case *GenStructStepAccountData:
 				if retain(curr[:maxLen]) {
-					if err := e.accountLeaf(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet, codeSizeUncached); err != nil {
+					if err := e.AccountLeaf(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet, codeSizeUncached); err != nil {
 						return nil, err
 					}
 				} else {
-					if err := e.accountLeafHash(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet); err != nil {
+					if err := e.AccountLeafHash(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet); err != nil {
 						return nil, err
 					}
 				}
 			case *GenStructStepLeafData:
 				/* building leafs */
 				if retain(curr[:maxLen]) {
-					if err := e.leaf(remainderLen, curr, v.Value); err != nil {
+					if err := e.Leaf(remainderLen, curr, v.Value); err != nil {
 						return nil, err
 					}
 				} else {
-					if err := e.leafHash(remainderLen, curr, v.Value); err != nil {
+					if err := e.LeafHash(remainderLen, curr, v.Value); err != nil {
 						return nil, err
 					}
 				}
@@ -170,11 +170,11 @@ func GenStructStep(
 				}
 				/* building extensions */
 				if retain(curr[:maxLen]) {
-					if err := e.extension(curr[remainderStart : remainderStart+remainderLen]); err != nil {
+					if err := e.Extension(curr[remainderStart : remainderStart+remainderLen]); err != nil {
 						return nil, err
 					}
 				} else {
-					if err := e.extensionHash(curr[remainderStart : remainderStart+remainderLen]); err != nil {
+					if err := e.ExtensionHash(curr[remainderStart : remainderStart+remainderLen]); err != nil {
 						return nil, err
 					}
 				}
@@ -187,16 +187,16 @@ func GenStructStep(
 		// Close the immediately encompassing prefix group, if needed
 		if len(succ) > 0 || precExists {
 			if retain(curr[:maxLen]) {
-				if err := e.branch(groups[maxLen]); err != nil {
+				if err := e.Branch(groups[maxLen]); err != nil {
 					return nil, err
 				}
 			} else {
-				if err := e.branchHash(groups[maxLen]); err != nil {
+				if err := e.BranchHash(groups[maxLen]); err != nil {
 					return nil, err
 				}
 			}
 			if h != nil {
-				if err := h(curr[:maxLen], e.topHash()); err != nil {
+				if err := h(curr[:maxLen], e.TopHash()); err != nil {
 					return nil, err
 				}
 			}

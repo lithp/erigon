@@ -562,7 +562,7 @@ func (dr *DefaultReceiver) Receive(itemType StreamItem,
 					dr.groups = dr.groups[:len(dr.groups)-1]
 				}
 			}
-			if dr.hb.hasRoot() {
+			if dr.hb.HasRoot() {
 				dr.subTries.roots = append(dr.subTries.roots, dr.hb.root())
 				dr.subTries.Hashes = append(dr.subTries.Hashes, dr.hb.rootHash())
 			} else {
@@ -817,7 +817,7 @@ func (dr *DefaultReceiver) saveValueAccount(isIH bool, v *accounts.Account, h []
 	if !dr.a.IsEmptyCodeHash() {
 		// the first item ends up deepest on the stack, the second item - on the top
 		dr.accData.FieldSet |= AccountFieldCodeOnly
-		if err := dr.hb.hash(dr.a.CodeHash[:]); err != nil {
+		if err := dr.hb.Hash(dr.a.CodeHash[:]); err != nil {
 			return err
 		}
 	}

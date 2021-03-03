@@ -18,28 +18,28 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 			}
 			keyHex := op.Key
 			val := op.Value
-			if err := hb.leaf(len(op.Key), keyHex, rlphacks.RlpSerializableBytes(val)); err != nil {
+			if err := hb.Leaf(len(op.Key), keyHex, rlphacks.RlpSerializableBytes(val)); err != nil {
 				return nil, err
 			}
 		case *OperatorExtension:
 			if trace {
 				fmt.Printf("EXTENSION ")
 			}
-			if err := hb.extension(op.Key); err != nil {
+			if err := hb.Extension(op.Key); err != nil {
 				return nil, err
 			}
 		case *OperatorBranch:
 			if trace {
 				fmt.Printf("BRANCH ")
 			}
-			if err := hb.branch(uint16(op.Mask)); err != nil {
+			if err := hb.Branch(uint16(op.Mask)); err != nil {
 				return nil, err
 			}
 		case *OperatorHash:
 			if trace {
 				fmt.Printf("HASH ")
 			}
-			if err := hb.hash(op.Hash[:]); err != nil {
+			if err := hb.Hash(op.Hash[:]); err != nil {
 				return nil, err
 			}
 		case *OperatorCode:
@@ -70,7 +70,7 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 			// db structure. Stateless clients don't access the DB so we can just pass 0 here.
 			incarnation := uint64(0)
 
-			if err := hb.accountLeaf(len(op.Key), op.Key, balance, nonce, incarnation, fieldSet, int(op.CodeSize)); err != nil {
+			if err := hb.AccountLeaf(len(op.Key), op.Key, balance, nonce, incarnation, fieldSet, int(op.CodeSize)); err != nil {
 				return nil, err
 			}
 		case *OperatorEmptyRoot:
@@ -85,7 +85,7 @@ func BuildTrieFromWitness(witness *Witness, isBinary bool, trace bool) (*Trie, e
 	if trace {
 		fmt.Printf("\n")
 	}
-	if !hb.hasRoot() {
+	if !hb.HasRoot() {
 		if isBinary {
 			return NewBinary(EmptyRoot), nil
 		}

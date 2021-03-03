@@ -114,7 +114,7 @@ type RootHashAggregator struct {
 	succ         bytes.Buffer
 	value        []byte   // Current value to be used as the value tape for the hash builder
 	groups       []uint16 // `groups` parameter is the map of the stack. each element of the `groups` slice is a bitmask, one bit per element currently on the stack. See `GenStructStep` docs
-	hb           *HashBuilder
+	Hb           HBuilder
 	hashData     GenStructStepHashData
 	a            accounts.Account
 	leafData     GenStructStepLeafData
@@ -123,7 +123,7 @@ type RootHashAggregator struct {
 
 func NewRootHashAggregator() *RootHashAggregator {
 	return &RootHashAggregator{
-		hb: NewHashBuilder(false),
+		Hb: NewHashBuilder(false),
 	}
 }
 
@@ -448,7 +448,7 @@ func (r *RootHashAggregator) Reset(hc HashCollector, trace bool) {
 	r.value = nil
 	r.groups = r.groups[:0]
 	r.a.Reset()
-	r.hb.Reset()
+	r.Hb.Reset()
 	r.wasIH = false
 	r.currStorage.Reset()
 	r.succStorage.Reset()
@@ -456,7 +456,7 @@ func (r *RootHashAggregator) Reset(hc HashCollector, trace bool) {
 	r.wasIHStorage = false
 	r.root = common.Hash{}
 	r.trace = trace
-	r.hb.trace = trace
+	r.Hb.SetTrace(trace)
 }
 
 func (r *RootHashAggregator) Receive(itemType StreamItem,
@@ -586,13 +586,13 @@ func (r *RootHashAggregator) Receive(itemType StreamItem,
 				r.groups = r.groups[:len(r.groups)-1]
 			}
 		}
-		if r.hb.hasRoot() {
-			r.root = r.hb.rootHash()
+		if r.Hb.HasRoot() {
+			r.root, _ = r.Hb.RootHash()
 		} else {
 			r.root = EmptyRoot
 		}
 		r.groups = r.groups[:0]
-		r.hb.Reset()
+		r.Hb.Reset()
 		r.wasIH = false
 		r.wasIHStorage = false
 		r.curr.Reset()
@@ -643,7 +643,7 @@ func (r *RootHashAggregator) genStructStorage() error {
 		r.leafData.Value = rlphacks.RlpSerializableBytes(r.valueStorage)
 		data = &r.leafData
 	}
-	r.groups, err = GenStructStep(r.RetainNothing, r.currStorage.Bytes(), r.succStorage.Bytes(), r.hb, r.hc, data, r.groups, r.trace)
+	r.groups, err = GenStructStep(r.RetainNothing, r.currStorage.Bytes(), r.succStorage.Bytes(), r.Hb, r.hc, data, r.groups, r.trace)
 	if err != nil {
 		return err
 	}
@@ -702,7 +702,7 @@ func (r *RootHashAggregator) genStructAccount() error {
 	r.currStorage.Reset()
 	r.succStorage.Reset()
 	var err error
-	if r.groups, err = GenStructStep(r.RetainNothing, r.curr.Bytes(), r.succ.Bytes(), r.hb, r.hc, data, r.groups, r.trace); err != nil {
+	if r.groups, err = GenStructStep(r.RetainNothing, r.curr.Bytes(), r.succ.Bytes(), r.Hb, r.hc, data, r.groups, r.trace); err != nil {
 		return err
 	}
 	r.accData.FieldSet = 0
@@ -720,7 +720,7 @@ func (r *RootHashAggregator) saveValueAccount(isIH bool, v *accounts.Account, h 
 	if !r.a.IsEmptyCodeHash() {
 		// the first item ends up deepest on the stack, the second item - on the top
 		r.accData.FieldSet |= AccountFieldCodeOnly
-		if err := r.hb.hash(r.a.CodeHash[:]); err != nil {
+		if err := r.Hb.Hash(r.a.CodeHash[:]); err != nil {
 			return err
 		}
 	}

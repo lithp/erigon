@@ -653,7 +653,7 @@ func StreamHash(it *StreamMergeIterator, storagePrefixLen int, hb *HashBuilder, 
 					fieldSet += AccountFieldStorageOnly
 				}
 			} else if itemType == AccountStreamItem && !aEmptyRoot {
-				if err := hb.hash(aRoot[:]); err != nil {
+				if err := hb.Hash(aRoot[:]); err != nil {
 					return common.Hash{}, err
 				}
 				fieldSet += AccountFieldStorageOnly
@@ -696,7 +696,7 @@ func StreamHash(it *StreamMergeIterator, storagePrefixLen int, hb *HashBuilder, 
 					}
 				} else if !a.IsEmptyCodeHash() {
 					fieldSet |= AccountFieldCodeOnly
-					if err := hb.hash(a.CodeHash[:]); err != nil {
+					if err := hb.Hash(a.CodeHash[:]); err != nil {
 						return common.Hash{}, err
 					}
 				}
@@ -749,7 +749,7 @@ func StreamHash(it *StreamMergeIterator, storagePrefixLen int, hb *HashBuilder, 
 			fieldSet |= AccountFieldStorageOnly
 		}
 	} else if itemType == AccountStreamItem && !aEmptyRoot {
-		if err := hb.hash(aRoot[:]); err != nil {
+		if err := hb.Hash(aRoot[:]); err != nil {
 			return common.Hash{}, err
 		}
 		fieldSet |= AccountFieldStorageOnly
@@ -775,7 +775,7 @@ func StreamHash(it *StreamMergeIterator, storagePrefixLen int, hb *HashBuilder, 
 			tt.Print(f)
 		}
 	}
-	if hb.hasRoot() {
+	if hb.HasRoot() {
 		return hb.rootHash(), nil
 	}
 	return EmptyRoot, nil

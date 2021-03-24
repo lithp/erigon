@@ -193,8 +193,8 @@ func WriteFastTrieProgress(db DatabaseWriter, count uint64) {
 }
 
 // ReadHeaderRLP retrieves a block header in its raw RLP database encoding.
-func ReadHeaderRLP(db databaseReader, hash common.Hash, number uint64) rlp.RawValue {
-	data, err := db.Get(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash))
+func ReadHeaderRLP(tx ethdb.Tx, hash common.Hash, number uint64) rlp.RawValue {
+	data, err := tx.GetOne(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash))
 	if err != nil && !errors.Is(err, ethdb.ErrKeyNotFound) {
 		log.Error("ReadHeaderRLP failed", "err", err)
 	}
@@ -202,16 +202,16 @@ func ReadHeaderRLP(db databaseReader, hash common.Hash, number uint64) rlp.RawVa
 }
 
 // HasHeader verifies the existence of a block header corresponding to the hash.
-func HasHeader(db databaseReader, hash common.Hash, number uint64) bool {
-	if has, err := db.Has(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash)); !has || err != nil {
+func HasHeader(tx ethdb.Tx, hash common.Hash, number uint64) bool {
+	if has, err := tx.HasOne(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash)); !has || err != nil {
 		return false
 	}
 	return true
 }
 
 // ReadHeader retrieves the block header corresponding to the hash.
-func ReadHeader(db databaseReader, hash common.Hash, number uint64) *types.Header {
-	data := ReadHeaderRLP(db, hash, number)
+func ReadHeader(tx ethdb.Tx, hash common.Hash, number uint64) *types.Header {
+	data := ReadHeaderRLP(tx, hash, number)
 	if len(data) == 0 {
 		return nil
 	}
@@ -241,7 +241,7 @@ func ReadHeadersByNumber(db ethdb.Getter, number uint64) ([]*types.Header, error
 
 // WriteHeader stores a block header into the database and also stores the hash-
 // to-number mapping.
-func WriteHeader(ctx context.Context, db DatabaseWriter, header *types.Header) {
+func WriteHeader(ctx context.Context, tx ethdb.RwTx, header *types.Header) {
 	var (
 		hash    = header.Hash()
 		number  = header.Number.Uint64()
@@ -250,7 +250,7 @@ func WriteHeader(ctx context.Context, db DatabaseWriter, header *types.Header) {
 	if common.IsCanceled(ctx) {
 		return
 	}
-	if err := db.Put(dbutils.HeaderNumberBucket, hash[:], encoded); err != nil {
+	if err := tx.RwCursor(dbutils.HeaderNumberBucket).Put(hash[:], encoded); err != nil {
 		log.Crit("Failed to store hash to number mapping", "err", err)
 	}
 	// Write the encoded header
@@ -258,17 +258,17 @@ func WriteHeader(ctx context.Context, db DatabaseWriter, header *types.Header) {
 	if err != nil {
 		log.Crit("Failed to RLP encode header", "err", err)
 	}
-	if err := db.Put(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash), data); err != nil {
+	if err := tx.RwCursor(dbutils.HeadersBucket).Put(dbutils.HeaderKey(number, hash), data); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
 }
 
 // DeleteHeader removes all block header data associated with a hash.
-func DeleteHeader(db DatabaseDeleter, hash common.Hash, number uint64) {
-	if err := db.Delete(dbutils.HeadersBucket, dbutils.HeaderKey(number, hash), nil); err != nil {
+func DeleteHeader(tx ethdb.RwTx, hash common.Hash, number uint64) {
+	if err := tx.RwCursor(dbutils.HeadersBucket).Delete(dbutils.HeaderKey(number, hash), nil); err != nil {
 		log.Crit("Failed to delete header", "err", err)
 	}
-	if err := db.Delete(dbutils.HeaderNumberBucket, hash.Bytes(), nil); err != nil {
+	if err := tx.RwCursor(dbutils.HeaderNumberBucket).Delete(hash.Bytes(), nil); err != nil {
 		log.Crit("Failed to delete hash to number mapping", "err", err)
 	}
 }

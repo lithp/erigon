@@ -107,22 +107,25 @@ func TestBadBlockStorage(t *testing.T) {
 
 // Tests block header storage and retrieval operations.
 func TestHeaderStorage(t *testing.T) {
-	db := ethdb.NewMemDatabase()
+	db := ethdb.NewMemKV()
 	defer db.Close()
+
+	tx, txErr := db.BeginRw(context.Background())
+	require.NoError(t, txErr)
 
 	// Create a test header to move around the database and make sure it's really new
 	header := &types.Header{Number: big.NewInt(42), Extra: []byte("test header")}
-	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
+	if entry := ReadHeader(tx, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Non existent header returned: %v", entry)
 	}
 	// Write and verify the header in the database
-	WriteHeader(context.Background(), db, header)
-	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry == nil {
+	WriteHeader(context.Background(), tx, header)
+	if entry := ReadHeader(tx, header.Hash(), header.Number.Uint64()); entry == nil {
 		t.Fatalf("Stored header not found")
 	} else if entry.Hash() != header.Hash() {
 		t.Fatalf("Retrieved header mismatch: have %v, want %v", entry, header)
 	}
-	if entry := ReadHeaderRLP(db, header.Hash(), header.Number.Uint64()); entry == nil {
+	if entry := ReadHeaderRLP(tx, header.Hash(), header.Number.Uint64()); entry == nil {
 		t.Fatalf("Stored header RLP not found")
 	} else {
 		hasher := sha3.NewLegacyKeccak256()
@@ -133,8 +136,8 @@ func TestHeaderStorage(t *testing.T) {
 		}
 	}
 	// Delete the header and verify the execution
-	DeleteHeader(db, header.Hash(), header.Number.Uint64())
-	if entry := ReadHeader(db, header.Hash(), header.Number.Uint64()); entry != nil {
+	DeleteHeader(tx, header.Hash(), header.Number.Uint64())
+	if entry := ReadHeader(tx, header.Hash(), header.Number.Uint64()); entry != nil {
 		t.Fatalf("Deleted header returned: %v", entry)
 	}
 }

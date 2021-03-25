@@ -26,6 +26,9 @@ jobs:
         with:
           version: v1.31
           only-new-issues: true
+          skip-go-installation: true
+          skip-pkg-cache: true
+          skip-build-cache: true
       - name: Test
         run: make test
       - name: Race

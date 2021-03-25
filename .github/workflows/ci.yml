@@ -16,7 +16,13 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Install dependencies
-        run: sudo apt update && sudo apt install build-essential
+        run: |
+          if [ "$RUNNER_OS" == "Linux" ]; then
+            sudo apt update && sudo apt install build-essential
+          elif [ "$RUNNER_OS" == "macOS" ]; then
+            brew install cmake
+          fi
+        shell: bash
       - uses: actions/cache@v2
         with:
           path: ~/go/pkg/mod

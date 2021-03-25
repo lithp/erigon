@@ -15,16 +15,19 @@ jobs:
       - uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      # - uses: actions/cache@v2
-      #   with:
-      #     path: ~/go/pkg/mod
-      #     key: go-${{ matrix.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
+      - name: Install dependencies
+        run: sudo apt update && sudo apt install build-essential
+      - uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: go-${{ matrix.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
       - name: Build
         run: make all
       - name: Lint
         uses: golangci/golangci-lint-action@v2
         with:
           version: v1.31
+          args: "--build-tags=mdbx"
           only-new-issues: true
           skip-go-installation: true
           skip-pkg-cache: true

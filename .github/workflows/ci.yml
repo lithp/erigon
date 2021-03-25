@@ -1,23 +1,7 @@
 name: Continuous integration
 on: [push]
 jobs:
-  lint:
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest]
-    runs-on: ${{ matrix.os }}
-    steps:
-      - uses: actions/checkout@v2
-        with:
-          submodules: recursive
-      - name: mdbx
-        run: make mdbx
-      - name: lint
-        uses: golangci/golangci-lint-action@v2
-        with:
-          version: v1.31
-          only-new-issues: true
-  test:
+  ci:
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest]
@@ -35,6 +19,13 @@ jobs:
         with:
           path: ~/go/pkg/mod
           key: go-${{ matrix.os }}-${{ matrix.go }}-${{ hashFiles('**/go.sum') }}
+      - name: Build
+        run: make all
+      - name: Lint
+        uses: golangci/golangci-lint-action@v2
+        with:
+          version: v1.31
+          only-new-issues: true
       - name: Test
         run: make test
       - name: Race

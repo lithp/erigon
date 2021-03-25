@@ -19,8 +19,6 @@ jobs:
         run: |
           if [ "$RUNNER_OS" == "Linux" ]; then
             sudo apt update && sudo apt install build-essential
-          elif [ "$RUNNER_OS" == "macOS" ]; then
-            brew install cmake
           fi
         shell: bash
       - uses: actions/cache@v2

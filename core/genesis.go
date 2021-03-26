@@ -260,8 +260,9 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
 func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state.IntraBlockState, error) {
-	r := state.NewDbStateReader(db)
-	w := state.NewDbStateWriter(db, 0)
+	tmpDb := ethdb.NewMemDatabase()
+	defer tmpDb.Close()
+	r, w := state.NewDbStateReader(tmpDb), state.NewDbStateWriter(tmpDb, 0)
 	statedb := state.New(r)
 	for addr, account := range g.Alloc {
 		balance, _ := uint256.FromBig(account.Balance)
@@ -289,7 +290,7 @@ func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state
 	if err := statedb.FinalizeTx(context.Background(), w); err != nil {
 		return nil, nil, err
 	}
-	root, err := trie.CalcRoot("genesis", db)
+	root, err := trie.CalcRoot("genesis", tmpDb)
 	if err != nil {
 		return nil, nil, err
 	}

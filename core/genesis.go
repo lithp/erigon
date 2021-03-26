@@ -260,11 +260,9 @@ func (g *Genesis) configOrDefault(ghash common.Hash) *params.ChainConfig {
 // ToBlock creates the genesis block and writes state of a genesis specification
 // to the given database (or discards it if nil).
 func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state.IntraBlockState, error) {
-	tds := state.NewTrieDbState(common.Hash{}, db, 0)
-
-	tds.StartNewBuffer()
-	statedb := state.New(tds)
-	tds.SetNoHistory(!history)
+	r := state.NewDbStateReader(db)
+	w := state.NewDbStateWriter(db, 0)
+	statedb := state.New(r)
 	for addr, account := range g.Alloc {
 		balance, _ := uint256.FromBig(account.Balance)
 		statedb.AddBalance(addr, balance)
@@ -288,15 +286,17 @@ func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state
 			}
 		}
 	}
-	err := statedb.FinalizeTx(context.Background(), tds.TrieStateWriter())
+	err := statedb.FinalizeTx(context.Background(), w)
 	if err != nil {
 		return nil, nil, err
 	}
-	roots, err := tds.ComputeTrieRoots()
+	l := trie.NewFlatDBTrieLoader("")
+	_ = l.Reset(trie.NewRetainList(0), nil, nil, false)
+	root, err := l.CalcTrieRoot(db, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	root := roots[len(roots)-1]
+	fmt.Printf("root: %x\n", root)
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),

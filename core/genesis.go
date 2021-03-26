@@ -289,7 +289,7 @@ func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state
 	if err := statedb.FinalizeTx(context.Background(), w); err != nil {
 		return nil, nil, err
 	}
-	l := trie.NewFlatDBTrieLoader("")
+	l := trie.NewFlatDBTrieLoader("genesis")
 	if err := l.Reset(trie.NewRetainList(0), nil, nil, false); err != nil {
 		return nil, nil, err
 	}

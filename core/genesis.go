@@ -286,17 +286,17 @@ func (g *Genesis) ToBlock(db ethdb.Database, history bool) (*types.Block, *state
 			}
 		}
 	}
-	err := statedb.FinalizeTx(context.Background(), w)
-	if err != nil {
+	if err := statedb.FinalizeTx(context.Background(), w); err != nil {
 		return nil, nil, err
 	}
 	l := trie.NewFlatDBTrieLoader("")
-	_ = l.Reset(trie.NewRetainList(0), nil, nil, false)
+	if err := l.Reset(trie.NewRetainList(0), nil, nil, false); err != nil {
+		return nil, nil, err
+	}
 	root, err := l.CalcTrieRoot(db, nil, nil)
 	if err != nil {
 		return nil, nil, err
 	}
-	fmt.Printf("root: %x\n", root)
 	head := &types.Header{
 		Number:     new(big.Int).SetUint64(g.Number),
 		Nonce:      types.EncodeNonce(g.Nonce),

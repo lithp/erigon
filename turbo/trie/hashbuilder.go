@@ -47,6 +47,7 @@ type HashBuilder struct {
 	prefixBuf [8]byte
 	trace     bool // Set to true when HashBuilder is required to print trace information for diagnostics
 	NodeLen int
+	LastNode bytes.Buffer  // stores the serialized intermediate nodes so they can be fetched later
 }
 
 // NewHashBuilder creates a new HashBuilder
@@ -57,6 +58,8 @@ func NewHashBuilder(trace bool) *HashBuilder {
 		trace:           trace,
 	}
 }
+
+func (hb *HashBuilder) SetPath(path []byte) {}
 
 func (hb *HashBuilder) SetTrace(trace bool) {
 	hb.trace = trace
@@ -70,6 +73,7 @@ func (hb *HashBuilder) Reset() {
 	if len(hb.NodeStack) > 0 {
 		hb.NodeStack = hb.NodeStack[:0]
 	}
+	hb.LastNode.Reset()
 }
 
 func (hb *HashBuilder) Leaf(length int, keyHex []byte, val rlphacks.RlpSerializable) error {
@@ -161,22 +165,32 @@ func (hb *HashBuilder) completeLeafHash(kp, kl, compactLen int, key []byte, comp
 	if _, err := writer.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.lenPrefix[:pt])
+
 	if _, err := writer.Write(hb.keyPrefix[:kp]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.keyPrefix[:kp])
+
 	hb.b[0] = compact0
 	if _, err := writer.Write(hb.b[:]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.b[:])
+
 	for i := 1; i < compactLen; i++ {
 		hb.b[0] = key[ni]*16 + key[ni+1]
 		if _, err := writer.Write(hb.b[:]); err != nil {
 			return err
 		}
+		hb.LastNode.Write(hb.b[:])
 		ni += 2
 	}
 
 	if err := val.ToDoubleRLP(writer, hb.prefixBuf[:]); err != nil {
+		return err
+	}
+	if err := val.ToDoubleRLP(&hb.LastNode, hb.prefixBuf[:]); err != nil {
 		return err
 	}
 
@@ -418,27 +432,37 @@ func (hb *HashBuilder) ExtensionHash(key []byte) error {
 	if _, err := hb.sha.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.lenPrefix[:pt])
+
 	if _, err := hb.sha.Write(hb.keyPrefix[:kp]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.keyPrefix[:kp])
+
 	hb.b[0] = compact0
 	if _, err := hb.sha.Write(hb.b[:]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.b[:])
+
 	for i := 1; i < compactLen; i++ {
 		hb.b[0] = key[ni]*16 + key[ni+1]
 		if _, err := hb.sha.Write(hb.b[:]); err != nil {
 			return err
 		}
+		hb.LastNode.Write(hb.b[:])
 		ni += 2
 	}
 	if _, err := hb.sha.Write(branchHash[:common.HashLength+1]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(branchHash[:common.HashLength+1])
+
 	// Replace previous hash with the new one
 	if _, err := hb.sha.Read(hb.HashStack[len(hb.HashStack)-common.HashLength:]); err != nil {
 		return err
 	}
+
 	hb.HashStack[len(hb.HashStack)-hashStackStride] = 0x80 + common.HashLength
 	if _, ok := hb.NodeStack[len(hb.NodeStack)-1].(*fullNode); ok {
 		return fmt.Errorf("extensionHash cannot be emitted when a node is on top of the stack")
@@ -516,6 +540,8 @@ func (hb *HashBuilder) BranchHash(set uint16) error {
 	if _, err := hb.sha.Write(hb.lenPrefix[:pt]); err != nil {
 		return err
 	}
+	hb.LastNode.Write(hb.lenPrefix[:pt])
+
 	// Output children hashes or embedded RLPs
 	i = 0
 	hb.b[0] = rlp.EmptyStringCode
@@ -525,18 +551,23 @@ func (hb *HashBuilder) BranchHash(set uint16) error {
 				if _, err := hb.sha.Write(hashes[hashStackStride*i : hashStackStride*i+hashStackStride]); err != nil {
 					return err
 				}
+				hb.LastNode.Write(
+					hashes[hashStackStride*i : hashStackStride*i+hashStackStride],
+				)
 			} else {
 				// Embedded node
 				size := int(hashes[hashStackStride*i]) - rlp.EmptyListCode
 				if _, err := hb.sha.Write(hashes[hashStackStride*i : hashStackStride*i+size+1]); err != nil {
 					return err
 				}
+				hb.LastNode.Write(hashes[hashStackStride*i : hashStackStride*i+size+1])
 			}
 			i++
 		} else {
 			if _, err := hb.sha.Write(hb.b[:]); err != nil {
 				return err
 			}
+			hb.LastNode.Write(hb.b[:])
 		}
 	}
 	hb.HashStack = hb.HashStack[:len(hb.HashStack)-hashStackStride*digits+hashStackStride]

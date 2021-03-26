@@ -39,6 +39,11 @@ type StructInfoReceiver interface {
 	BranchHash(set uint16) error
 	Hash(hash []byte) error
 	TopHash() []byte
+
+	// it would have been cleaner to add the current path as a parameter to the methods above
+	// which do not already receive it. However, adding this method is a smaller change, and
+	// doesn't require me to change a bunch of callsites in TG code.
+	SetPath(path []byte)
 }
 
 // hashCollector gets called whenever there might be a need to create intermediate hash record
@@ -133,16 +138,19 @@ func GenStructStep(
 			switch v := data.(type) {
 			case *GenStructStepHashData:
 				/* building a hash */
+				e.SetPath(curr)
 				if err := e.Hash(v.Hash[:]); err != nil {
 					return nil, err
 				}
 				buildExtensions = true
 			case *GenStructStepAccountData:
 				if retain(curr[:maxLen]) {
+					e.SetPath(curr)
 					if err := e.AccountLeaf(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet, codeSizeUncached); err != nil {
 						return nil, err
 					}
 				} else {
+					e.SetPath(curr)
 					if err := e.AccountLeafHash(remainderLen, curr, &v.Balance, v.Nonce, v.Incarnation, v.FieldSet); err != nil {
 						return nil, err
 					}
@@ -150,10 +158,12 @@ func GenStructStep(
 			case *GenStructStepLeafData:
 				/* building leafs */
 				if retain(curr[:maxLen]) {
+					e.SetPath(curr)
 					if err := e.Leaf(remainderLen, curr, v.Value); err != nil {
 						return nil, err
 					}
 				} else {
+					e.SetPath(curr)
 					if err := e.LeafHash(remainderLen, curr, v.Value); err != nil {
 						return nil, err
 					}
@@ -170,10 +180,12 @@ func GenStructStep(
 				}
 				/* building extensions */
 				if retain(curr[:maxLen]) {
+					e.SetPath(curr[:remainderStart])
 					if err := e.Extension(curr[remainderStart : remainderStart+remainderLen]); err != nil {
 						return nil, err
 					}
 				} else {
+					e.SetPath(curr[:remainderStart])
 					if err := e.ExtensionHash(curr[remainderStart : remainderStart+remainderLen]); err != nil {
 						return nil, err
 					}
@@ -187,10 +199,12 @@ func GenStructStep(
 		// Close the immediately encompassing prefix group, if needed
 		if len(succ) > 0 || precExists {
 			if retain(curr[:maxLen]) {
+				e.SetPath(curr[:maxLen])
 				if err := e.Branch(groups[maxLen]); err != nil {
 					return nil, err
 				}
 			} else {
+				e.SetPath(curr[:maxLen])
 				if err := e.BranchHash(groups[maxLen]); err != nil {
 					return nil, err
 				}

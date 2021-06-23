@@ -217,7 +217,28 @@ func RemoteServices(cfg Flags, rootCancel context.CancelFunc) (kv ethdb.RoKV, et
 	return kv, eth, txPool, mining, err
 }
 
+
 func StartRpcServer(ctx context.Context, cfg Flags, rpcAPI []rpc.API) error {
+
+	endpoint := "erigon.ipc"
+	listener, srv, err := rpc.StartIPCEndpoint(endpoint, rpcAPI)
+	if err != nil {
+		return err
+	}
+
+	log.Info("IPC endpoint opened", "endpoint", endpoint)
+
+	defer func() {
+		srv.Stop()
+		listener.Close()
+		log.Info("IPC endpoint closed", "endpoint", endpoint)
+	}()
+	<-ctx.Done()
+	log.Info("Exiting...")
+	return nil
+}
+
+func _StartRpcServer(ctx context.Context, cfg Flags, rpcAPI []rpc.API) error {
 	// register apis and create handler stack
 	httpEndpoint := fmt.Sprintf("%s:%d", cfg.HttpListenAddress, cfg.HttpPort)
 
